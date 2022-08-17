@@ -1,15 +1,28 @@
-import uuid from "uuid";
-import AWS from "aws-sdk";
+const uuid = require('uuid');
+const AWS = require("aws-sdk");
 
 AWS.config.setPromisesDependency(require('bluebird'));
 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
+const welcome = (event, context, callback) => {
+    const response = {
+        statusCode: 200,
+        //  Uncomment below to enable CORS requests
+        //  headers: {
+        //      "Access-Control-Allow-Origin": "*",
+        //      "Access-Control-Allow-Headers": "*"
+        //  }, 
+        body: JSON.stringify('Contacts API functioning!'), 
+    };
+    callback(null, response);
+};
+
 const create = (event, context, callback) => {
     const requestBody = JSON.parse(event.body);
     const { name, phone, imageUrl, note, email } = requestBody;
 
-    if (typeof name !== "string" ){
+    if (typeof name !== "string") {
         console.error('Validation Failed');
         callback(new Error('Couldn\'t create contact information because of name validation errors.'));
         return;
@@ -23,7 +36,7 @@ const create = (event, context, callback) => {
         return;
     }
 
-    const timestamp = new Date().getTime(); 
+    const timestamp = new Date().getTime();
 
     const contactInfo = {
         id: uuid.v1(),
@@ -57,22 +70,9 @@ const create = (event, context, callback) => {
         });
 };
 
-
-const submitContact = (contact) => {
-    console.log('creating contact');
-    const contactInfo = {
-        TableName: process.env.CONTACT_TABLE,
-        Item: contact,
-    };
-    return dynamoDb.put(contactInfo).promise()
-        .then(res => contact);
-};
-
-
 const listAllContact = (event, context, callback) => {
     var params = {
         TableName: process.env.CONTACT_TABLE,
-        ProjectionExpression: "id, name, email, phone, note, imageUrl",
     };
 
     console.log("Scanning Contact table.");
@@ -94,7 +94,6 @@ const listAllContact = (event, context, callback) => {
     };
 
     dynamoDb.scan(params, onScan);
-
 };
 
 const getSingleContact = (event, context, callback) => {
@@ -109,7 +108,7 @@ const getSingleContact = (event, context, callback) => {
         .then(result => {
             const response = {
                 statusCode: 200,
-                body: JSON.stringify(result.Item),
+                body: result.Item ? JSON.stringify(result.Item) : null,
             };
             callback(null, response);
         })
@@ -119,3 +118,16 @@ const getSingleContact = (event, context, callback) => {
             return;
         });
 };
+
+
+const submitContact = (contact) => {
+    console.log('creating contact');
+    const contactInfo = {
+        TableName: process.env.CONTACT_TABLE,
+        Item: contact,
+    };
+    return dynamoDb.put(contactInfo).promise()
+        .then(res => contact);
+};
+
+module.exports = { welcome, create, listAllContact, getSingleContact };

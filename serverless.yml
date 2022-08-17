@@ -1,0 +1,80 @@
+# serverless.yml
+service: contact-portal
+app: contact-portal
+	
+frameworkVersion: ">=2.5.0 <3.0.0"
+ 
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: us-east-1
+  memorySize: 128
+  timeout: 30
+  lambdaHashingVersion: 20200924
+  environment:
+    CONTACT_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+      Resource: "*"
+
+resources:
+  Resources:
+    contactsDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: "id"
+            AttributeType: "S"   
+        KeySchema:
+          -
+            AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: "NEW_AND_OLD_IMAGES"
+        TableName: ${self:provider.environment.CONTACT_TABLE}
+
+
+functions:
+  contactWelcome:
+    handler: api/index.welcome
+    events:
+      - http:
+          path: contacts/welcome
+          method: get
+
+  contactsubmission:
+    handler: api/index.create
+    memorySize: 128
+    description: Submit contact information and starts interview process.
+    events:
+      - http: 
+          path: contacts/create/contacts
+          method: post
+
+  listcontacts:
+    handler: api/index.listAllContact
+    memorySize: 128
+    description: List all contacts
+    events:
+      - http: 
+          path: contacts/getall
+          method: get
+
+  contactDetails:
+    handler: api/index.getSingleContact
+    events:
+      - http:
+          path: contacts/{id}
+          method: get
